@@ -1,78 +1,56 @@
-cat > /mnt/user-data/outputs/SW_ESP_LITE.lua << 'EOF'
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
 local LocalPlayer = Players.LocalPlayer
 
-local FRIEND_COLOR  = Color3.fromRGB(100, 149, 237)
-local DEFAULT_COLOR = Color3.new(1, 1, 1)
+local function createNameTag(player, character)
+	local head = character:WaitForChild("Head")
 
-local friendSet = {}
-pcall(function()
-    local pages = Players:GetFriendsAsync(LocalPlayer.UserId)
-    while true do
-        for _, info in pairs(pages:GetCurrentPage()) do
-            friendSet[info.Username] = true
-        end
-        if pages.IsFinished then break end
-        pages:AdvanceToNextPageAsync()
-    end
-end)
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "CustomNameTag"
+	billboard.Size = UDim2.new(0, 140, 0, 28)
+	billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = head
 
-local function createESP(plr)
-    if plr == LocalPlayer then return end
-    local char = plr.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    if root:FindFirstChild("SW_ESP_LITE") then return end
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 16
+	label.TextStrokeTransparency = 0.4
+	label.Text = player.Name
 
-    local bb = Instance.new("BillboardGui")
-    bb.Name = "SW_ESP_LITE"
-    bb.Size = UDim2.new(0, 120, 0, 18)
-    bb.StudsOffset = Vector3.new(0, 3, 0)
-    bb.AlwaysOnTop = true
-    bb.Parent = root
+	if LocalPlayer:IsFriendsWith(player.UserId) then
+		label.TextColor3 = Color3.fromRGB(0, 170, 255) -- Arkadaşlar mavi
+	else
+		label.TextColor3 = Color3.fromRGB(255, 255, 255) -- Diğerleri beyaz
+	end
 
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, 0, 1, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.TextColor3 = friendSet[plr.Name] and FRIEND_COLOR or DEFAULT_COLOR
-    lbl.TextStrokeTransparency = 0
-    lbl.TextStrokeColor3 = Color3.new(0, 0, 0)
-    lbl.Font = Enum.Font.GothamBold
-    lbl.TextSize = 13
-    lbl.Text = plr.Name
-    lbl.Parent = bb
+	label.Parent = billboard
 end
 
-for _, plr in pairs(Players:GetPlayers()) do
-    if plr.Character then createESP(plr) end
-    plr.CharacterAdded:Connect(function() task.wait(0.1) createESP(plr) end)
+local function onCharacterAdded(player, character)
+	local oldTag = character:FindFirstChild("CustomNameTag", true)
+	if oldTag then
+		oldTag:Destroy()
+	end
+
+	createNameTag(player, character)
 end
 
-Players.PlayerAdded:Connect(function(plr)
-    plr.CharacterAdded:Connect(function() task.wait(0.1) createESP(plr) end)
-end)
+for _, player in ipairs(Players:GetPlayers()) do
+	if player ~= LocalPlayer then
+		if player.Character then
+			onCharacterAdded(player, player.Character)
+		end
 
-Players.PlayerRemoving:Connect(function(plr)
-    if plr.Character then
-        local root = plr.Character:FindFirstChild("HumanoidRootPart")
-        if root then
-            local bb = root:FindFirstChild("SW_ESP_LITE")
-            if bb then bb:Destroy() end
-        end
-    end
-end)
+		player.CharacterAdded:Connect(function(character)
+			onCharacterAdded(player, character)
+		end)
+	end
+end
 
-RunService.Heartbeat:Connect(function()
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character then
-            local root = plr.Character:FindFirstChild("HumanoidRootPart")
-            if root and not root:FindFirstChild("SW_ESP_LITE") then
-                createESP(plr)
-            end
-        end
-    end
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function(character)
+		onCharacterAdded(player, character)
+	end)
 end)
-EOF
